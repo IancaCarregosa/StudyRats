@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase'
 import { tagLabel } from '@/lib/tags'
 import { formatDuration, timeAgo } from '@/lib/time'
 import Comments from '@/components/Comments'
+import Avatar from '@/components/Avatar'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 
@@ -19,7 +20,7 @@ type FeedItem = {
   front_photo_key: string
   back_photo_key: string
   created_at: string
-  profiles: { display_name: string } | null
+  profiles: { display_name: string; avatar_url: string | null } | null
   comments: { count: number }[]
 }
 
@@ -59,7 +60,7 @@ export default function FeedPage({ userId }: { userId: string }) {
     const { data, error } = await supabase
       .from('study_logs')
       .select(
-        'id, user_id, title, tag, duration_minutes, front_photo_key, back_photo_key, created_at, profiles(display_name), comments(count), study_log_groups!inner(group_id)'
+        'id, user_id, title, tag, duration_minutes, front_photo_key, back_photo_key, created_at, profiles(display_name, avatar_url), comments(count), study_log_groups!inner(group_id)'
       )
       .in('study_log_groups.group_id', ids)
       .order('created_at', { ascending: false })
@@ -164,9 +165,16 @@ export default function FeedPage({ userId }: { userId: string }) {
             <Card key={item.id}>
               <CardContent className="flex flex-col gap-3 p-4">
                 <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">{item.profiles?.display_name ?? 'Usuário'}</p>
-                    <p className="text-xs text-muted-foreground">{timeAgo(item.created_at)}</p>
+                  <div className="flex items-center gap-2">
+                    <Avatar
+                      path={item.profiles?.avatar_url}
+                      name={item.profiles?.display_name ?? 'Usuário'}
+                      size={36}
+                    />
+                    <div>
+                      <p className="font-medium">{item.profiles?.display_name ?? 'Usuário'}</p>
+                      <p className="text-xs text-muted-foreground">{timeAgo(item.created_at)}</p>
+                    </div>
                   </div>
                   {item.user_id === userId && (
                     <Button size="sm" variant="ghost" onClick={() => deletePost(item)}>
@@ -213,4 +221,4 @@ export default function FeedPage({ userId }: { userId: string }) {
       )}
     </div>
   )
-}   
+}

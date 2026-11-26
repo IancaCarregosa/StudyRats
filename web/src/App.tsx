@@ -3,11 +3,16 @@ import { supabase } from '@/lib/supabase'
 import { useSession } from '@/hooks/useSession'
 import { Button } from '@/components/ui/button'
 import AuthPage from '@/pages/AuthPage'
+import GroupsPage from '@/pages/GroupsPage'
+import StudyPage from '@/pages/StudyPage'
+import FeedPage from '@/pages/FeedPage'
 
-// Tela temporária só para provar que login + banco + RLS funcionam.
-// Depois vira a Home com o feed.
-function TempHome({ userId }: { userId: string }) {
+type Tab = 'feed' | 'study' | 'groups'
+
+// Layout provisório: cabeçalho + abas. Será refeito quando o design do Figma chegar.
+function Home({ userId }: { userId: string }) {
   const [name, setName] = useState<string | null>(null)
+  const [tab, setTab] = useState<Tab>('feed')
 
   useEffect(() => {
     supabase
@@ -22,14 +27,32 @@ function TempHome({ userId }: { userId: string }) {
   }, [userId])
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-4 p-4">
-      <h1 className="text-2xl font-bold">
-        {name ? `Olá, ${name}!` : 'Carregando perfil...'}
-      </h1>
-      <p className="text-sm text-muted-foreground">Login e banco funcionando.</p>
-      <Button variant="outline" onClick={() => supabase.auth.signOut()}>
-        Sair
-      </Button>
+    <div className="min-h-screen">
+      <header className="flex items-center justify-between border-b p-4">
+        <span className="font-bold">Study Rats</span>
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-muted-foreground">{name}</span>
+          <Button size="sm" variant="outline" onClick={() => supabase.auth.signOut()}>
+            Sair
+          </Button>
+        </div>
+      </header>
+
+      <nav className="flex gap-2 border-b p-2">
+        <Button size="sm" variant={tab === 'feed' ? 'default' : 'ghost'} onClick={() => setTab('feed')}>
+          Feed
+        </Button>
+        <Button size="sm" variant={tab === 'study' ? 'default' : 'ghost'} onClick={() => setTab('study')}>
+          Estudar
+        </Button>
+        <Button size="sm" variant={tab === 'groups' ? 'default' : 'ghost'} onClick={() => setTab('groups')}>
+          Grupos
+        </Button>
+      </nav>
+
+      {tab === 'feed' && <FeedPage userId={userId} />}
+      {tab === 'study' && <StudyPage userId={userId} onPublished={() => setTab('feed')} />}
+      {tab === 'groups' && <GroupsPage userId={userId} />}
     </div>
   )
 }
@@ -41,5 +64,5 @@ export default function App() {
     return <div className="flex min-h-screen items-center justify-center">Carregando...</div>
   }
 
-  return session ? <TempHome userId={session.user.id} /> : <AuthPage />
+  return session ? <Home userId={session.user.id} /> : <AuthPage />
 }

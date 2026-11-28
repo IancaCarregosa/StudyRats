@@ -41,3 +41,37 @@ export function formatDateHeader(date = new Date()) {
   const rest = date.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' })
   return `${weekday}, ${rest}`
 }
+
+// "1h 30", "34h 20", "45 min" (formato dos cartões do perfil)
+export function formatHM(total: number) {
+  if (total < 60) return `${total} min`
+  const h = Math.floor(total / 60)
+  const m = total % 60
+  return `${h}h ${String(m).padStart(2, '0')}`
+}
+
+// "YYYY-MM-DD" -> Date local (sem deslocamento de fuso)
+export function parseDay(iso: string) {
+  const [y, m, d] = iso.split('-').map(Number)
+  return new Date(y, m - 1, d)
+}
+
+// "16 a 18 de novembro" / "30 de outubro a 2 de novembro" / "18 de novembro"
+export function formatDateRange(start: Date, end: Date, pad = false) {
+  const month = (d: Date) => d.toLocaleDateString('pt-BR', { month: 'long' })
+  const day = (d: Date) => (pad ? String(d.getDate()).padStart(2, '0') : String(d.getDate()))
+
+  if (start.toDateString() === end.toDateString()) return `${day(end)} de ${month(end)}`
+  if (start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear()) {
+    return `${day(start)} a ${day(end)} de ${month(end)}`
+  }
+  return `${day(start)} de ${month(start)} a ${day(end)} de ${month(end)}`
+}
+
+// segunda-feira desta semana até hoje
+export function currentWeekRange() {
+  const today = new Date()
+  const monday = new Date(today)
+  monday.setDate(today.getDate() - ((today.getDay() + 6) % 7))
+  return formatDateRange(monday, today)
+}

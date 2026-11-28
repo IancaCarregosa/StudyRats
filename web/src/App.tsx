@@ -16,7 +16,6 @@ type View = NavId | 'new' | 'notifications'
 const TITLES: Partial<Record<View, string>> = {
   groups: 'Grupos',
   ranking: 'Ranking',
-  profile: 'Perfil',
 }
 
 function Shell({ userId }: { userId: string }) {

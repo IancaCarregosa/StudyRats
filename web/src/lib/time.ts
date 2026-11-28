@@ -18,3 +18,26 @@ export function formatDuration(total: number) {
   if (m === 0) return `${h} h`
   return `${h} h ${m} min`
 }
+
+// "Hoje, às 14:32" / "Ontem, às 10:15" / "18/11, às 10:15"
+export function formatPostTime(iso: string) {
+  const d = new Date(iso)
+  const now = new Date()
+  const time = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+
+  if (d.toDateString() === now.toDateString()) return `Hoje, às ${time}`
+
+  const yesterday = new Date(now)
+  yesterday.setDate(now.getDate() - 1)
+  if (d.toDateString() === yesterday.toDateString()) return `Ontem, às ${time}`
+
+  const date = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
+  return `${date}, às ${time}`
+}
+
+// "quarta, 18 de novembro" (o CSS deixa em maiúsculas)
+export function formatDateHeader(date = new Date()) {
+  const weekday = date.toLocaleDateString('pt-BR', { weekday: 'long' }).split('-')[0]
+  const rest = date.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' })
+  return `${weekday}, ${rest}`
+}

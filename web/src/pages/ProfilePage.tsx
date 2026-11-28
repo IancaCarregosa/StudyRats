@@ -4,6 +4,8 @@ import { supabase } from '@/lib/supabase'
 import { formatDuration } from '@/lib/time'
 import { squareAvatarBlob } from '@/lib/image'
 import Avatar from '@/components/Avatar'
+import GoalCard from '@/components/GoalCard'
+import AppearanceCard from '@/components/AppearanceCard'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -13,6 +15,7 @@ type Stats = {
   total_minutes: number
   total_sessions: number
   streak: number
+  best_streak: number
   week_minutes: number
 }
 type Daily = { day: string; minutes: number }
@@ -254,10 +257,12 @@ export default function ProfilePage({
         </CardContent>
       </Card>
 
+      <GoalCard userId={userId} />
+
       {/* ESTATÍSTICAS */}
       <div className="grid grid-cols-2 gap-2">
         <StatBox
-          label="Sequência"
+          label={`Sequência (recorde ${stats?.best_streak ?? 0})`}
           value={`${stats?.streak ?? 0} ${(stats?.streak ?? 0) === 1 ? 'dia' : 'dias'}`}
         />
         <StatBox label="Esta semana" value={formatDuration(stats?.week_minutes ?? 0)} />
@@ -285,6 +290,7 @@ export default function ProfilePage({
         </CardContent>
       </Card>
 
+      <AppearanceCard />
     </div>
   )
 }

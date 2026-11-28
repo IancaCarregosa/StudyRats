@@ -81,8 +81,8 @@ export default function HomePage({
           <p className="text-[11px] font-semibold uppercase tracking-wide opacity-80">
             Seu próximo passo
           </p>
-          <h2 className="text-xl font-bold leading-tight">
-            Um passo hoje,<br></br> um sonho mais perto.
+          <h2 className="text-2xl font-bold leading-tight mb-2">
+            Seu progresso começa agora.
           </h2>
           <p className="text-sm opacity-90">{goalLine(stats)}</p>
           <button
@@ -94,7 +94,7 @@ export default function HomePage({
             Começar a estudar
           </button>
         </div>
-        <Mascot className="absolute -right-2 top-1/2 h-32 w-auto -translate-y-1/2" />
+        <Mascot className="absolute -right-0 top-1/2 h-32 w-auto -translate-y-1/2" />
       </div>
 
       {/* feed */}

@@ -1,58 +1,117 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
+import { X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useSession } from '@/hooks/useSession'
-import { Button } from '@/components/ui/button'
 import AuthPage from '@/pages/AuthPage'
+import HomePage from '@/pages/HomePage'
 import GroupsPage from '@/pages/GroupsPage'
 import StudyPage from '@/pages/StudyPage'
-import FeedPage from '@/pages/FeedPage'
+import RankingPage from '@/pages/RankingPage'
+import ProfilePage from '@/pages/ProfilePage'
+import NotificationsPage from '@/pages/NotificationsPage'
+import BottomNav, { type NavId } from '@/components/BottomNav'
 
-type Tab = 'feed' | 'study' | 'groups'
+type View = NavId | 'new' | 'notifications'
 
-// Layout provisório: cabeçalho + abas. Será refeito quando o design do Figma chegar.
-function Home({ userId }: { userId: string }) {
-  const [name, setName] = useState<string | null>(null)
-  const [tab, setTab] = useState<Tab>('feed')
+const TITLES: Partial<Record<View, string>> = {
+  groups: 'Grupos',
+  ranking: 'Ranking',
+  profile: 'Perfil',
+}
 
-  useEffect(() => {
-    supabase
-      .from('profiles')
-      .select('display_name')
-      .eq('id', userId)
-      .single()
-      .then(({ data, error }) => {
-        if (error) console.error(error)
-        setName(data?.display_name ?? null)
-      })
+function Shell({ userId }: { userId: string }) {
+  const [view, setView] = useState<View>('home')
+  const [groupsFocus, setGroupsFocus] = useState<'create' | 'join' | undefined>()
+  const [unread, setUnread] = useState(0)
+
+  // contador de notificações não lidas (sino da home)
+  const refreshUnread = useCallback(async () => {
+    const { count } = await supabase
+      .from('notifications')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .is('read_at', null)
+    setUnread(count ?? 0)
   }, [userId])
 
+  useEffect(() => {
+    refreshUnread()
+    const timer = setInterval(refreshUnread, 60_000)
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') refreshUnread()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      clearInterval(timer)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+  }, [refreshUnread])
+
+  // guarda o fuso horário do navegador: semana, mês e sequência dependem dele
+  useEffect(() => {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
+    if (tz) {
+      supabase.from('profiles').update({ timezone: tz }).eq('id', userId).then(() => {})
+    }
+  }, [userId])
+
+  function goGroups(focus?: 'create' | 'join') {
+    setGroupsFocus(focus)
+    setView('groups')
+  }
+
+  const activeNav: NavId = view === 'new' || view === 'notifications' ? 'home' : view
+  const title = TITLES[view]
+
   return (
-    <div className="min-h-screen">
-      <header className="flex items-center justify-between border-b p-4">
-        <span className="font-bold">Study Rats</span>
-        <div className="flex items-center gap-3">
-          <span className="text-sm text-muted-foreground">{name}</span>
-          <Button size="sm" variant="outline" onClick={() => supabase.auth.signOut()}>
-            Sair
-          </Button>
-        </div>
-      </header>
+    <div className="mx-auto min-h-screen w-full max-w-md pb-36">
+      {view === 'home' && (
+        <HomePage
+          userId={userId}
+          unread={unread}
+          onOpenNotifications={() => setView('notifications')}
+          onStart={() => setView('new')}
+          onGoGroups={goGroups}
+        />
+      )}
 
-      <nav className="flex gap-2 border-b p-2">
-        <Button size="sm" variant={tab === 'feed' ? 'default' : 'ghost'} onClick={() => setTab('feed')}>
-          Feed
-        </Button>
-        <Button size="sm" variant={tab === 'study' ? 'default' : 'ghost'} onClick={() => setTab('study')}>
-          Estudar
-        </Button>
-        <Button size="sm" variant={tab === 'groups' ? 'default' : 'ghost'} onClick={() => setTab('groups')}>
-          Grupos
-        </Button>
-      </nav>
+      {view === 'notifications' && (
+        <NotificationsPage
+          userId={userId}
+          onBack={() => setView('home')}
+          onChanged={refreshUnread}
+        />
+      )}
 
-      {tab === 'feed' && <FeedPage userId={userId} />}
-      {tab === 'study' && <StudyPage userId={userId} onPublished={() => setTab('feed')} />}
-      {tab === 'groups' && <GroupsPage userId={userId} />}
+      {view === 'new' && (
+        <>
+          <header className="flex items-center justify-between px-6 pt-6">
+            <h1 className="text-2xl font-bold">Novo registro</h1>
+            <button
+              type="button"
+              onClick={() => setView('home')}
+              aria-label="Fechar"
+              className="flex size-11 items-center justify-center rounded-full border bg-card"
+            >
+              <X className="size-5" />
+            </button>
+          </header>
+          <StudyPage userId={userId} onPublished={() => setView('home')} />
+        </>
+      )}
+
+      {title && <h1 className="px-4 pt-6 text-2xl font-bold">{title}</h1>}
+      {view === 'groups' && <GroupsPage userId={userId} focus={groupsFocus} />}
+      {view === 'ranking' && <RankingPage userId={userId} />}
+      {view === 'profile' && <ProfilePage userId={userId} />}
+
+      {view !== 'new' && (
+        <BottomNav
+          active={activeNav}
+          onChange={(id) => setView(id)}
+          onNew={() => setView('new')}
+        />
+      )}
     </div>
   )
 }
@@ -64,5 +123,5 @@ export default function App() {
     return <div className="flex min-h-screen items-center justify-center">Carregando...</div>
   }
 
-  return session ? <Home userId={session.user.id} /> : <AuthPage />
+  return session ? <Shell userId={session.user.id} /> : <AuthPage />
 }

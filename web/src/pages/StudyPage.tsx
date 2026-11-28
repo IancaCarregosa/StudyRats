@@ -171,6 +171,9 @@ export default function StudyPage({
 
               <div className="flex flex-col gap-2">
                 <Label>Quanto tempo?</Label>
+                <p className="text-xs text-muted-foreground">
+                  Registros de 30 min ou mais contam para a sua sequência.
+                </p>
                 <div className="flex items-center gap-2">
                   <Input
                     type="number"

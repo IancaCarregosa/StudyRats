@@ -187,7 +187,13 @@ function JoinGroupCard({ onDone }: { onDone: () => void }) {
 // ---------------------------------------------------------------
 // Página
 // ---------------------------------------------------------------
-export default function GroupsPage({ userId }: { userId: string }) {
+export default function GroupsPage({
+  userId,
+  focus,
+}: {
+  userId: string
+  focus?: 'create' | 'join'
+}) {
   const [groups, setGroups] = useState<Group[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -214,6 +220,14 @@ export default function GroupsPage({ userId }: { userId: string }) {
   useEffect(() => {
     load()
   }, [load])
+
+  // vindo da home ("Criar grupo" / "Usar código"): rola até o cartão certo
+  useEffect(() => {
+    if (loading || !focus) return
+    document
+      .getElementById(focus === 'create' ? 'create-group-card' : 'join-group-card')
+      ?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [loading, focus])
 
   async function leaveGroup(group: Group) {
     if (!window.confirm(`Sair do grupo "${group.name}"?`)) return
@@ -276,8 +290,12 @@ export default function GroupsPage({ userId }: { userId: string }) {
         </ul>
       )}
 
-      <CreateGroupCard onDone={load} />
-      <JoinGroupCard onDone={load} />
+      <div id="create-group-card">
+        <CreateGroupCard onDone={load} />
+      </div>
+      <div id="join-group-card">
+        <JoinGroupCard onDone={load} />
+      </div>
     </div>
   )
 }

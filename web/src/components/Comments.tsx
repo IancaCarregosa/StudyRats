@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { timeAgo } from '@/lib/time'
+import Avatar from '@/components/Avatar'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 
@@ -9,7 +10,7 @@ type Comment = {
   body: string
   created_at: string
   user_id: string
-  profiles: { display_name: string } | null
+  profiles: { display_name: string; avatar_url: string | null } | null
 }
 
 export default function Comments({
@@ -33,7 +34,7 @@ export default function Comments({
     setLoading(true)
     const { data, error } = await supabase
       .from('comments')
-      .select('id, body, created_at, user_id, profiles(display_name)')
+      .select('id, body, created_at, user_id, profiles(display_name, avatar_url)')
       .eq('study_log_id', logId)
       .order('created_at', { ascending: true })
     setLoading(false)
@@ -87,7 +88,12 @@ export default function Comments({
 
           {comments.map((c) => (
             <div key={c.id} className="text-sm">
-              <p>
+              <p className="flex items-center gap-2">
+                <Avatar
+                  path={c.profiles?.avatar_url}
+                  name={c.profiles?.display_name ?? 'Usuário'}
+                  size={22}
+                />
                 <strong>{c.profiles?.display_name ?? 'Usuário'}</strong>{' '}
                 <span className="text-xs text-muted-foreground">{timeAgo(c.created_at)}</span>
               </p>

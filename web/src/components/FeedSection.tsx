@@ -1,29 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
+import { ChevronDown } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
-import { tagLabel } from '@/lib/tags'
-import { formatDuration, timeAgo } from '@/lib/time'
-import Comments from '@/components/Comments'
+import FeedCard, { type FeedItem } from '@/components/FeedCard'
+import type { CommentItem } from '@/components/Comments'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
 
 const PAGE_SIZE = 10
 
 type Group = { id: string; name: string }
 
-type FeedItem = {
-  id: string
-  user_id: string
-  title: string
-  tag: string
-  duration_minutes: number
-  front_photo_key: string
-  back_photo_key: string
-  created_at: string
-  profiles: { display_name: string } | null
-  comments: { count: number }[]
-}
-
-export default function FeedPage({ userId }: { userId: string }) {
+export default function FeedSection({ userId }: { userId: string }) {
   const [groups, setGroups] = useState<Group[]>([])
   const [groupsLoaded, setGroupsLoaded] = useState(false)
   const [filter, setFilter] = useState<string>('all')
@@ -48,18 +34,17 @@ export default function FeedPage({ userId }: { userId: string }) {
       })
   }, [userId])
 
-  // quais grupos entram na consulta
   const ids = useMemo(
     () => (filter === 'all' ? groups.map((g) => g.id) : [filter]),
     [groups, filter]
   )
 
-  // busca uma página do feed e gera as URLs assinadas das fotos
+  // busca uma página: registros + último comentário de cada um + URLs assinadas das fotos
   async function fetchPage(offset: number) {
     const { data, error } = await supabase
       .from('study_logs')
       .select(
-        'id, user_id, title, tag, duration_minutes, front_photo_key, back_photo_key, created_at, profiles(display_name), comments(count), study_log_groups!inner(group_id)'
+        'id, user_id, title, tag, duration_minutes, front_photo_key, back_photo_key, created_at, profiles(display_name, avatar_url), comments(count), study_log_groups!inner(group_id)'
       )
       .in('study_log_groups.group_id', ids)
       .order('created_at', { ascending: false })
@@ -68,8 +53,25 @@ export default function FeedPage({ userId }: { userId: string }) {
     if (error) throw new Error(error.message)
     const page = (data ?? []) as unknown as FeedItem[]
 
-    const keys = page.flatMap((i) => [i.front_photo_key, i.back_photo_key])
-    if (keys.length > 0) {
+    if (page.length > 0) {
+      // último comentário de cada registro (para a prévia do card)
+      const { data: cs } = await supabase
+        .from('comments')
+        .select('id, study_log_id, body, created_at, user_id, profiles(display_name, avatar_url)')
+        .in('study_log_id', page.map((i) => i.id))
+        .order('created_at', { ascending: false })
+        .limit(200)
+
+      const lastBy: Record<string, CommentItem> = {}
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ;(cs ?? []).forEach((c: any) => {
+        if (!lastBy[c.study_log_id]) lastBy[c.study_log_id] = c as CommentItem
+      })
+      page.forEach((i) => {
+        i.last_comment = lastBy[i.id] ?? null
+      })
+
+      const keys = page.flatMap((i) => [i.front_photo_key, i.back_photo_key])
       const { data: signed } = await supabase.storage
         .from('study-photos')
         .createSignedUrls(keys, 3600)
@@ -119,91 +121,59 @@ export default function FeedPage({ userId }: { userId: string }) {
     if (!window.confirm('Apagar este registro?')) return
     const { error } = await supabase.from('study_logs').delete().eq('id', item.id)
     if (error) return setError(error.message)
-    // remove as fotos do storage (melhor esforço)
     await supabase.storage.from('study-photos').remove([item.front_photo_key, item.back_photo_key])
     setItems((cur) => cur.filter((i) => i.id !== item.id))
   }
 
-  if (!groupsLoaded || loading) {
-    return <p className="p-4 text-sm text-muted-foreground">Carregando...</p>
-  }
-
   return (
-    <div className="mx-auto flex w-full max-w-md flex-col gap-4 p-4">
-      {groups.length > 1 && (
-        <select
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-          className="h-9 w-full rounded-md border bg-transparent px-3 text-sm"
-          aria-label="Filtrar por grupo"
-        >
-          <option value="all">Todos os grupos</option>
-          {groups.map((g) => (
-            <option key={g.id} value={g.id}>
-              {g.name}
-            </option>
-          ))}
-        </select>
-      )}
+    <section className="flex flex-col gap-4">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h2 className="text-xl font-bold">Na sua rede</h2>
+          <p className="text-sm text-muted-foreground">Um pouco de inspiração dos seus amigos.</p>
+        </div>
+
+        <div className="relative shrink-0">
+          <select
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            aria-label="Filtrar por grupo"
+            className="h-8 max-w-36 appearance-none rounded-full border bg-card pl-3 pr-8 text-xs font-semibold text-primary"
+          >
+            <option value="all">Amigos</option>
+            {groups.map((g) => (
+              <option key={g.id} value={g.id}>
+                {g.name}
+              </option>
+            ))}
+          </select>
+          <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 size-3.5 -translate-y-1/2 text-primary" />
+        </div>
+      </div>
 
       {error && <p className="text-sm text-red-500">{error}</p>}
 
-      {groups.length === 0 ? (
+      {!groupsLoaded || loading ? (
+        <p className="text-sm text-muted-foreground">Carregando...</p>
+      ) : groups.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          Entre em um grupo (aba Grupos) para ver os registros dos seus amigos.
+          Entre em um grupo para ver os registros dos seus amigos.
         </p>
       ) : items.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           Nenhum registro ainda. Seja o primeiro a estudar hoje.
         </p>
       ) : (
-        items.map((item) => {
-          const frontUrl = urls[item.front_photo_key]
-          const backUrl = urls[item.back_photo_key]
-          return (
-            <Card key={item.id}>
-              <CardContent className="flex flex-col gap-3 p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">{item.profiles?.display_name ?? 'Usuário'}</p>
-                    <p className="text-xs text-muted-foreground">{timeAgo(item.created_at)}</p>
-                  </div>
-                  {item.user_id === userId && (
-                    <Button size="sm" variant="ghost" onClick={() => deletePost(item)}>
-                      Apagar
-                    </Button>
-                  )}
-                </div>
-
-                <div className="relative aspect-[3/4] w-full overflow-hidden rounded-lg bg-muted">
-                  {backUrl && (
-                    <img src={backUrl} alt="Foto do ambiente" className="h-full w-full object-cover" />
-                  )}
-                  {frontUrl && (
-                    <img
-                      src={frontUrl}
-                      alt="Foto do estudante"
-                      className="absolute left-2 top-2 w-1/3 rounded-md border-2 border-white object-cover"
-                    />
-                  )}
-                </div>
-
-                <div>
-                  <p className="font-medium">{item.title}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {tagLabel(item.tag)} · {formatDuration(item.duration_minutes)}
-                  </p>
-                </div>
-
-                <Comments
-                  logId={item.id}
-                  userId={userId}
-                  initialCount={item.comments?.[0]?.count ?? 0}
-                />
-              </CardContent>
-            </Card>
-          )
-        })
+        items.map((item) => (
+          <FeedCard
+            key={item.id}
+            item={item}
+            frontUrl={urls[item.front_photo_key]}
+            backUrl={urls[item.back_photo_key]}
+            userId={userId}
+            onDelete={deletePost}
+          />
+        ))
       )}
 
       {hasMore && (
@@ -211,6 +181,6 @@ export default function FeedPage({ userId }: { userId: string }) {
           {loadingMore ? 'Carregando...' : 'Carregar mais'}
         </Button>
       )}
-    </div>
+    </section>
   )
-}   
+}

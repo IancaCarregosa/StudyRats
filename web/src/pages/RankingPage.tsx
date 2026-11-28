@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { formatDuration } from '@/lib/time'
+import Avatar from '@/components/Avatar'
 import { Button } from '@/components/ui/button'
 
 type Group = { id: string; name: string }
@@ -111,6 +112,7 @@ export default function RankingPage({ userId }: { userId: string }) {
                 className={`flex items-center gap-3 rounded-lg border p-3 ${me ? 'border-primary' : ''}`}
               >
                 <span className="w-6 text-center font-mono text-sm">{positions[i]}</span>
+                <Avatar path={r.avatar_url} name={r.display_name} size={32} />
                 <div className="flex-1">
                   <p className={`text-sm ${me ? 'font-bold' : 'font-medium'}`}>
                     {r.display_name}
